@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>华小牛·农场主闯关</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; max-width: 800px; margin: 20px auto; background: #f4f9f4; color: #333; }
+        .header { display: flex; justify-content: space-between; background: #4CAF50; color: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .stats { font-size: 18px; font-weight: bold; }
+        .event-box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 5px solid #ff9800; }
+        .event-box h3 { margin-top: 0; color: #d32f2f; }
+        .chat-box { background: white; height: 300px; overflow-y: auto; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+        .user-msg { color: #1976d2; text-align: right; margin: 10px 0; font-size: 15px; }
+        .ai-msg { color: #388e3c; text-align: left; margin: 10px 0; white-space: pre-wrap; font-size: 15px; line-height: 1.6; }
+        .sys-msg { color: #757575; text-align: center; margin: 10px 0; font-size: 13px; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 15px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #1976d2; color: white; }
+        .btn-primary:hover { background: #1565c0; }
+        .btn-secondary { background: #ff9800; color: white; }
+        .btn-secondary:hover { background: #f57c00; }
+        .option-btn { background: #e0e0e0; color: #333; margin: 8px 0; display: block; width: 100%; text-align: left; padding: 12px 15px; border-radius: 5px; }
+        .option-btn:hover { background: #d5d5d5; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="stats">🪙 金币: <span id="gold">1000</span></div>
+        <div class="stats">❤️ 牛群健康: <span id="health">100</span>%</div>
+        <div class="stats">📅 第 <span id="day">1</span> 天</div>
+    </div>
+
+    <!-- 当前突发事件 -->
+    <div class="event-box" id="event-box">
+        <h3>🚨 突发事件：</h3>
+        <p id="event-text">欢迎来到华小牛农场！点击下方按钮开始新的一天。</p>
+    </div>
+
+    <!-- 聊天/诊断记录 -->
+    <div class="chat-box" id="chat-box">
+        <div class="sys-msg">系统提示：请先接受突发事件，然后向华小牛求助。</div>
+    </div>
+
+    <!-- 操作按钮区 -->
+    <div class="controls" id="controls">
+        <button class="btn-secondary" id="next-day-btn" onclick="nextDay()">开始新的一天</button>
+        <button class="btn-primary" id="ask-btn" onclick="triggerUpload()" style="display:none;">📸 向华小牛求助（上传照片）</button>
+
+        <!-- 隐藏的图片上传框 -->
+        <input type="file" id="image-input" accept="image/*" style="display:none;">
+
+        <div id="treatment-options" style="display:none; width: 100%; margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        // 游戏状态
+        let gold = 1000;
+        let health = 100;
+        let day = 1;
+        let currentEvent = "";
+        let currentTreatments = { A: "", B: "", C: "" };
+
+        // 随机事件库
+        const events = [
+            "一只牛的腿部受伤流血，精神萎靡，食欲不振。",
+            "一只小猪不吃食，躺在地上喘气，身上有红斑。",
+            "果园里的柑橘树叶片出现黄色斑点，部分叶片枯萎。",
+            "一只羊走路一瘸一拐，蹄部有明显的肿胀。"
+        ];
+
+        // 1. 开始新的一天（触发事件）
+        function nextDay() {
+            document.getElementById('day').innerText = day++;
+            currentEvent = events[Math.floor(Math.random() * events.length)];
+            document.getElementById('event-text').innerText = currentEvent;
+
+            // 重置UI
+            document.getElementById('ask-btn').style.display = 'inline-block';
+            document.getElementById('ask-btn').disabled = false;
+            document.getElementById('next-day-btn').disabled = true;
+            document.getElementById('treatment-options').style.display = 'none';
+            document.getElementById('chat-box').innerHTML = `<div class="sys-msg">系统提示：新事件已发生！请点击按钮向华小牛求助。</div>`;
+        }
+
+        // 2. 触发文件选择框（修复上传问题的关键函数）
+        function triggerUpload() {
+            const fileInput = document.getElementById('image-input');
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                alert("❌ 网页错误：找不到图片上传组件！");
+            }
+        }
+
+        // 3. 用户选好图片后，自动执行 AI 诊断逻辑
+        document.getElementById('image-input').onchange = async function() {
+            const fileInput = this;
+            if (fileInput.files.length === 0) return; // 用户点了取消
+
+            const query = `农场事件：${currentEvent}。请扮演农场兽医NPC，分析图片并给出3个明确的治疗方案。请严格按以下格式输出：方案A：xxx。方案B：xxx。方案C：xxx。`;
+
+            appendMessage('你', `[已上传照片] 请求华小牛诊断。`);
+            document.getElementById('ask-btn').disabled = true;
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            try {
+                // 3.1 调用 YOLO 识别
+                appendMessage('系统', 'YOLO 正在识别图片...');
+                const yoloResp = await fetch('http://127.0.0.1:8000/api/detect', { method: 'POST', body: formData });
+                const yoloData = await yoloResp.json();
+                const labelText = yoloData.labels.join(", ");
+                appendMessage('系统', `YOLO识别结果：${labelText}`);
+
+                // 3.2 调用多模态大模型
+                appendMessage('系统', '华小牛正在思考治疗方案...');
+                const chatResp = await fetch('http://127.0.0.1:8000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: `事件：${currentEvent}。YOLO识别结果：${labelText}。${query}`,
+                        image: yoloData.image // 把带框的图传给多模态模型
+                    })
+                });
+                const chatData = await chatResp.json();
+
+                appendMessage('华小牛', chatData.answer);
+
+                // 3.3 解析 AI 的方案
+                const text = chatData.answer;
+                currentTreatments.A = text.includes('方案A：') ? text.split('方案A：')[1].split('方案B：')[0].trim() : "清理伤口并涂抹抗生素";
+                currentTreatments.B = text.includes('方案B：') ? text.split('方案B：')[1].split('方案C：')[0].trim() : "注射消炎针剂";
+                currentTreatments.C = text.includes('方案C：') ? text.split('方案C：')[1].split('\n')[0].trim() : "隔离观察并补充营养";
+
+                showTreatmentOptions(); // 显示选项
+            } catch (error) {
+                appendMessage('系统', '❌ 错误：' + error.message);
+                document.getElementById('ask-btn').disabled = false;
+            }
+
+            fileInput.value = ''; // 清空 input，保证下次还能选同一张图
+        };
+
+        // 4. 显示治疗方案选项
+        function showTreatmentOptions() {
+            const optionsDiv = document.getElementById('treatment-options');
+            optionsDiv.style.display = 'block';
+            optionsDiv.innerHTML = `
+                <p style="font-weight:bold; margin-bottom:5px;">请选择你的治疗方案：</p>
+                <button class="option-btn" onclick="takeAction('A')">方案 A：${currentTreatments.A}</button>
+                <button class="option-btn" onclick="takeAction('B')">方案 B：${currentTreatments.B}</button>
+                <button class="option-btn" onclick="takeAction('C')">方案 C：${currentTreatments.C}</button>
+            `;
+        }
+
+        // 5. 执行治疗方案，AI 判定结果
+        async function takeAction(choice) {
+            const chosenText = currentTreatments[choice];
+            appendMessage('你', `我选择方案 ${choice}：${chosenText}`);
+            document.getElementById('treatment-options').style.display = 'none';
+
+            appendMessage('系统', '华小牛正在评估你的治疗结果...');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: `事件是：${currentEvent}。我采取了治疗方案：${choice}：${chosenText}。请作为游戏裁判，判定结果。必须简短明确地告诉我：是“治愈成功”还是“治疗失败”。如果成功，告诉我获得的经验和金币；如果失败，告诉我损失的健康度。禁止反问我，直接给结果！`
+                    })
+                });
+                const data = await response.json();
+                appendMessage('华小牛', data.answer);
+
+                // 更新游戏数值（前端随机概率判定，保证游戏可玩性）
+                const isSuccess = Math.random() > 0.4; // 60% 成功率
+
+                if (isSuccess) {
+                    gold += 200;
+                    document.getElementById('gold').innerText = gold;
+                    appendMessage('系统', '🎉 判定结果：治疗成功！获得 200 金币！');
+                } else {
+                    health -= 20;
+                    document.getElementById('health').innerText = health;
+                    appendMessage('系统', '❌ 判定结果：治疗失败，牛群健康度下降 20%！');
+                }
+
+                // 重置状态
+                document.getElementById('next-day-btn').disabled = false;
+                document.getElementById('ask-btn').style.display = 'none';
+
+            } catch (error) {
+                appendMessage('系统', '错误：' + error.message);
+                document.getElementById('next-day-btn').disabled = false;
+            }
+        }
+
+        // 6. 辅助函数：向聊天框添加消息
+        function appendMessage(sender, text) {
+            const chatBox = document.getElementById('chat-box');
+            let className = 'ai-msg';
+            if (sender === '你') className = 'user-msg';
+            else if (sender === '系统') className = 'sys-msg';
+
+            chatBox.innerHTML += `<div class="${className}"><b>${sender}：</b>${text}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
