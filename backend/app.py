@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 
-app = FastAPI(title="华小牛AI助手", version="1.0.0")
+app = FastAPI(title="华小洁AI助手", version="1.0.0")
 
 # 允许跨域，方便前端本地开发
 app.add_middleware(
@@ -18,5 +18,5 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 启动华小牛后端服务...")
+    print("🚀 启动华小洁后端服务...")
     uvicorn.run(app, host="0.0.0.0", port=8000)

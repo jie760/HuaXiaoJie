@@ -34,18 +34,18 @@
     <!-- 当前突发事件 -->
     <div class="event-box" id="event-box">
         <h3>🚨 突发事件：</h3>
-        <p id="event-text">欢迎来到华小牛农场！点击下方按钮开始新的一天。</p>
+        <p id="event-text">欢迎来到华小洁农场！点击下方按钮开始新的一天。</p>
     </div>
 
     <!-- 聊天/诊断记录 -->
     <div class="chat-box" id="chat-box">
-        <div class="sys-msg">系统提示：请先接受突发事件，然后向华小牛求助。</div>
+        <div class="sys-msg">系统提示：请先接受突发事件，然后向华小洁求助。</div>
     </div>
 
     <!-- 操作按钮区 -->
     <div class="controls" id="controls">
         <button class="btn-secondary" id="next-day-btn" onclick="nextDay()">开始新的一天</button>
-        <button class="btn-primary" id="ask-btn" onclick="triggerUpload()" style="display:none;">📸 向华小牛求助（上传照片）</button>
+        <button class="btn-primary" id="ask-btn" onclick="triggerUpload()" style="display:none;">📸 向华小洁求助（上传照片）</button>
 
         <!-- 隐藏的图片上传框 -->
         <input type="file" id="image-input" accept="image/*" style="display:none;">
@@ -80,7 +80,7 @@
             document.getElementById('ask-btn').disabled = false;
             document.getElementById('next-day-btn').disabled = true;
             document.getElementById('treatment-options').style.display = 'none';
-            document.getElementById('chat-box').innerHTML = `<div class="sys-msg">系统提示：新事件已发生！请点击按钮向华小牛求助。</div>`;
+            document.getElementById('chat-box').innerHTML = `<div class="sys-msg">系统提示：新事件已发生！请点击按钮向华小洁求助。</div>`;
         }
 
         // 2. 触发文件选择框（修复上传问题的关键函数）
@@ -100,7 +100,7 @@
 
             const query = `农场事件：${currentEvent}。请扮演农场兽医NPC，分析图片并给出3个明确的治疗方案。请严格按以下格式输出：方案A：xxx。方案B：xxx。方案C：xxx。`;
 
-            appendMessage('你', `[已上传照片] 请求华小牛诊断。`);
+            appendMessage('你', `[已上传照片] 请求华小洁诊断。`);
             document.getElementById('ask-btn').disabled = true;
 
             const formData = new FormData();
@@ -115,7 +115,7 @@
                 appendMessage('系统', `YOLO识别结果：${labelText}`);
 
                 // 3.2 调用多模态大模型
-                appendMessage('系统', '华小牛正在思考治疗方案...');
+                appendMessage('系统', '华小洁正在思考治疗方案...');
                 const chatResp = await fetch('http://127.0.0.1:8000/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -126,7 +126,7 @@
                 });
                 const chatData = await chatResp.json();
 
-                appendMessage('华小牛', chatData.answer);
+                appendMessage('华小洁', chatData.answer);
 
                 // 3.3 解析 AI 的方案
                 const text = chatData.answer;
@@ -161,7 +161,7 @@
             appendMessage('你', `我选择方案 ${choice}：${chosenText}`);
             document.getElementById('treatment-options').style.display = 'none';
 
-            appendMessage('系统', '华小牛正在评估你的治疗结果...');
+            appendMessage('系统', '华小洁正在评估你的治疗结果...');
 
             try {
                 const response = await fetch('http://127.0.0.1:8000/api/chat', {
@@ -172,7 +172,7 @@
                     })
                 });
                 const data = await response.json();
-                appendMessage('华小牛', data.answer);
+                appendMessage('华小洁', data.answer);
 
                 // 更新游戏数值（前端随机概率判定，保证游戏可玩性）
                 const isSuccess = Math.random() > 0.4; // 60% 成功率
