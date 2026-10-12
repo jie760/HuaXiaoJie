@@ -14,7 +14,7 @@ if os.name == 'nt':  # Windows 系统
 from ultralytics import YOLO
 
 if __name__ == '__main__':
-    # 1. 加载预训练模型（会自动下载一个几MB的 yolo11n.pt 文件）
+    # 1. 加载预训练模型（会自动下载一个几MB的 yolo11n_one.pt 文件）
     model = YOLO(r"D:\tools\task one\yolo11n.pt")
 
     # 2. 开始训练

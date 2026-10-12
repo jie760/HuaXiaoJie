@@ -5,7 +5,7 @@ from ultralytics import YOLO
 if __name__ == '__main__':
     # 1. 加载你刚刚训练好的模型
     # 注意路径中的 train-2，要和你 runs/detect 里面的文件夹名字对应上
-    model = YOLO("runs/detect/train-2/weights/best.pt")
+    model = YOLO("../runs/detect/train-2/weights/best.pt")
 
     # 2. 打开电脑摄像头 (0 代表默认摄像头)
     cap = cv2.VideoCapture(0)

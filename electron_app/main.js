@@ -14,7 +14,7 @@ function createWindow() {
 
     // 加载你阶段三写好的前端页面
     // 注意这里使用的是相对路径，指向 web 文件夹里的 index.html
-    win.loadFile(path.join(__dirname, '../web/index.html'));
+    win.loadFile(path.join(__dirname, '../frontend/index.html'));
 }
 
 app.whenReady().then(createWindow);
