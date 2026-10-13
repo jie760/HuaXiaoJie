@@ -66,7 +66,8 @@
             "一只牛的腿部受伤流血，精神萎靡，食欲不振。",
             "一只小猪不吃食，躺在地上喘气，身上有红斑。",
             "果园里的柑橘树叶片出现黄色斑点，部分叶片枯萎。",
-            "一只羊走路一瘸一拐，蹄部有明显的肿胀。"
+            "一只羊走路一瘸一拐，蹄部有明显的肿胀。",
+            "一只小鸡躲在角落里，瑟瑟发抖"
         ];
 
         // 1. 开始新的一天（触发事件）
@@ -75,28 +76,24 @@
             currentEvent = events[Math.floor(Math.random() * events.length)];
             document.getElementById('event-text').innerText = currentEvent;
 
-            // 重置UI
             document.getElementById('ask-btn').style.display = 'inline-block';
             document.getElementById('ask-btn').disabled = false;
             document.getElementById('next-day-btn').disabled = true;
             document.getElementById('treatment-options').style.display = 'none';
             document.getElementById('chat-box').innerHTML = `<div class="sys-msg">系统提示：新事件已发生！请点击按钮向华小洁求助。</div>`;
+            console.log("✅ 新的一天，事件：", currentEvent);
         }
 
-        // 2. 触发文件选择框（修复上传问题的关键函数）
+        // 2. 触发文件选择框
         function triggerUpload() {
             const fileInput = document.getElementById('image-input');
-            if (fileInput) {
-                fileInput.click();
-            } else {
-                alert("❌ 网页错误：找不到图片上传组件！");
-            }
+            if (fileInput) fileInput.click();
         }
 
         // 3. 用户选好图片后，自动执行 AI 诊断逻辑
         document.getElementById('image-input').onchange = async function() {
             const fileInput = this;
-            if (fileInput.files.length === 0) return; // 用户点了取消
+            if (fileInput.files.length === 0) return;
 
             const query = `农场事件：${currentEvent}。请扮演农场兽医NPC，分析图片并给出3个明确的治疗方案。请严格按以下格式输出：方案A：xxx。方案B：xxx。方案C：xxx。`;
 
@@ -107,41 +104,36 @@
             formData.append("file", fileInput.files[0]);
 
             try {
-                // 3.1 调用 YOLO 识别
                 appendMessage('系统', 'YOLO 正在识别图片...');
                 const yoloResp = await fetch('http://127.0.0.1:8000/api/detect', { method: 'POST', body: formData });
                 const yoloData = await yoloResp.json();
                 const labelText = yoloData.labels.join(", ");
                 appendMessage('系统', `YOLO识别结果：${labelText}`);
 
-                // 3.2 调用多模态大模型
                 appendMessage('系统', '华小洁正在思考治疗方案...');
                 const chatResp = await fetch('http://127.0.0.1:8000/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         query: `事件：${currentEvent}。YOLO识别结果：${labelText}。${query}`,
-                        image: yoloData.image // 把带框的图传给多模态模型
-                        mode:"game"
+                        image: yoloData.image,
+                        mode: "game" // ✅ 语法正确！
                     })
                 });
                 const chatData = await chatResp.json();
-
                 appendMessage('华小洁', chatData.answer);
 
-                // 3.3 解析 AI 的方案
                 const text = chatData.answer;
                 currentTreatments.A = text.includes('方案A：') ? text.split('方案A：')[1].split('方案B：')[0].trim() : "清理伤口并涂抹抗生素";
                 currentTreatments.B = text.includes('方案B：') ? text.split('方案B：')[1].split('方案C：')[0].trim() : "注射消炎针剂";
                 currentTreatments.C = text.includes('方案C：') ? text.split('方案C：')[1].split('\n')[0].trim() : "隔离观察并补充营养";
 
-                showTreatmentOptions(); // 显示选项
+                showTreatmentOptions();
             } catch (error) {
                 appendMessage('系统', '❌ 错误：' + error.message);
                 document.getElementById('ask-btn').disabled = false;
             }
-
-            fileInput.value = ''; // 清空 input，保证下次还能选同一张图
+            fileInput.value = '';
         };
 
         // 4. 显示治疗方案选项
@@ -156,29 +148,31 @@
             `;
         }
 
-        // 5. 执行治疗方案，AI 判定结果
+            // ============== 7. 执行治疗方案，AI 判定 ==============
         async function takeAction(choice) {
             const chosenText = currentTreatments[choice];
             appendMessage('你', `我选择方案 ${choice}：${chosenText}`);
             document.getElementById('treatment-options').style.display = 'none';
 
-            appendMessage('系统', '华小洁正在评估你的治疗结果...');
+            // 1. 前端先决定游戏结果（60%成功率）
+            const isSuccess = Math.random() > 0.4;
+            const resultText = isSuccess ? "治愈成功" : "治疗失败";
+
+            appendMessage('系统', `华小洁正在评估你的治疗结果（本次判定：${resultText}）...`);
 
             try {
+                // 2. 把前端决定的结果当作指令发给 AI，让它顺着写剧本
+                const query = `事件是：${currentEvent}。我选择了方案：${choice}：${chosenText}。系统判定本次治疗结果是【${resultText}】。请你扮演游戏裁判，承认这个结果，并围绕这个结果写一段生动的剧情描写。如果是成功，请说获得200金币；如果是失败，请说损失20点健康度。禁止改写结果！`;
+
                 const response = await fetch('http://127.0.0.1:8000/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        query: `事件是：${currentEvent}。我采取了治疗方案：${choice}：${chosenText}。请作为游戏裁判，判定结果。必须简短明确地告诉我：是“治愈成功”还是“治疗失败”。如果成功，告诉我获得的经验和金币；如果失败，告诉我损失的健康度。禁止反问我，直接给结果！`
-                        mode:"game"
-                    })
+                    body: JSON.stringify({ query: query, mode: "game" })
                 });
                 const data = await response.json();
                 appendMessage('华小洁', data.answer);
 
-                // 更新游戏数值（前端随机概率判定，保证游戏可玩性）
-                const isSuccess = Math.random() > 0.4; // 60% 成功率
-
+                // 3. 根据前端之前的判定来加减数值
                 if (isSuccess) {
                     gold += 200;
                     document.getElementById('gold').innerText = gold;
@@ -189,16 +183,13 @@
                     appendMessage('系统', '❌ 判定结果：治疗失败，牛群健康度下降 20%！');
                 }
 
-                // 重置状态
                 document.getElementById('next-day-btn').disabled = false;
                 document.getElementById('ask-btn').style.display = 'none';
-
             } catch (error) {
                 appendMessage('系统', '错误：' + error.message);
                 document.getElementById('next-day-btn').disabled = false;
             }
         }
-
         // 6. 辅助函数：向聊天框添加消息
         function appendMessage(sender, text) {
             const chatBox = document.getElementById('chat-box');
