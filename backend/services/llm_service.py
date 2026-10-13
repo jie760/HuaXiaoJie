@@ -1,51 +1,62 @@
 # 大模型推理服务层
 from ollama import Client
 
-# 为“华小洁”注入 RPG 游戏灵魂的系统提示词
-HUA_XIAO_JIE_RPG_PROMPT = """
-你是一只名为“华小洁”的华南农业大学专属兽医NPC，生活在一个充满趣味和挑战的农场RPG游戏里。
-你的玩家（农场主）会遇到各种突发事件（如牛受伤、猪生病、果树枯萎等）。你的任务是根据玩家的操作做出生动的反应。
-
-【当前游戏设定】
-- 语气要幽默、专业、接地气（多用一些农场主的口头禅，比如“老乡”、“这牛犊子”）。
-- 玩家治愈成功会获得金币，失败会损失牛群健康度。
-
-【你的两种工作模式】（请严格按照下方要求输出）
-
-模式一：当玩家向你求助并请求方案时。
-要求：给出3个治疗方案。
-格式：方案A：xxx。方案B：xxx。方案C：xxx。
-(注意：绝对不要给出多余的问候语，严格按此格式输出，方便游戏前端解析)
-
-模式二：当玩家选择了某个方案后，请你作为游戏裁判判定结果。
-要求：必须包含明确的“治愈成功”或“治疗失败”字眼，并附上一段生动的剧情描写（例如：“牛虽然治好了，但后续护理不当，又感染了……”）。
-格式：判定结果：治愈成功/治疗失败。[生动的剧情描写]。
-(注意：如果是成功，请说获得200金币；如果是失败，请说损失20点健康度。禁止反问玩家！)
+# 模式一：日常聊天（用于 index.html）
+HUA_XIAO_JIE_CHAT_PROMPT = """
+你叫“华小洁”，是华南农业大学专属的资深兽医AI助手。你性格热情、务实、接地气，精通农学和畜牧兽医。
+【核心原则】
+1. 你是专家，要有自信。不要盲目附和用户的错误说法。
+2. 当你看到图片时，请仔细分析图中的每一个细节（包括伤口、血迹、牛的姿势、周围环境）。如果 YOLO 框选了一个区域，但该区域并没有明显异常，请忽略框选，寻找图中真正的问题。
+3. 如果用户指出你判断有误（例如说“是头上的角受伤了”），请不要立刻道歉顺从。你应该结合视觉信息重新评估，如果发现确实如此，就给出专业的解释；如果是用户看错了，请礼貌地坚持你的专业判断。
+4. 如果用户只是和你闲聊（例如说“你好”），请不要带入兽医的身份，而是作为一个聊天伙伴。
 """
 
+# 模式二：RPG游戏裁判（用于 game.html）
+HUA_XIAO_JIE_GAME_PROMPT = """
+你叫“华小洁”，是农场RPG游戏里的兽医NPC。你性格务实，喜欢解决农场的突发问题。
+【工作模式】
+1. 玩家求助：请给出3个治疗方案，格式：方案A：xxx。方案B：xxx。方案C：xxx。
+2. 玩家选择方案：请作为裁判给出结果，必须包含“治愈成功”或“治疗失败”，并附上生动的剧情描写（例如：“牛虽然治好了，但后续护理不当，又感染了……”）
+(注意：如果是成功，请说获得200金币；如果是失败，请说损失20点健康度。禁止反问玩家！)。
+"""
+
+from ollama import Client
+
+
+# ... (前面定义的 HUA_XIAO_JIE_CHAT_PROMPT 和 HUA_XIAO_JIE_GAME_PROMPT 保持不变) ...
 
 class LLMService:
     def __init__(self, host='http://127.0.0.1:11434'):
         self.client = Client(host=host)
 
-    def chat(self, query: str, image_base64: str = None):
-        """核心推理逻辑：纯文本走 qwen，带图走 minicpm-v"""
-        messages = [
-            {"role": "system", "content": HUA_XIAO_NIU_RPG_PROMPT},
-            {"role": "user", "content": query}
-        ]
+    # 🆕 增加 history 参数
+    def chat(self, query: str, image_base64: str = None, mode: str = "chat", history: list = None):
+        system_prompt = HUA_XIAO_JIE_GAME_PROMPT if mode == "game" else HUA_XIAO_JIE_CHAT_PROMPT
 
+        # 1. 初始化消息列表，先放入系统提示词
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # 2. 放入历史对话（这能让模型记住上下文！）
+        if history:
+            for msg in history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # 3. 处理当前用户消息
+        current_msg = {"role": "user", "content": query}
         if image_base64:
             # 清理 base64 前缀
             clean_image = image_base64.split(",")[1] if "," in image_base64 else image_base64
-            messages[-1]["images"] = [clean_image]
+            current_msg["images"] = [clean_image]
             model_name = "minicpm-v"
         else:
             model_name = "qwen2.5:14b"
 
+        messages.append(current_msg)
+
+        # 4. 发送给 Ollama
         response = self.client.chat(
             model=model_name,
             messages=messages,
-            options={"temperature": 0.7}
+            options={"temperature": 0.6}
         )
         return response.message.content

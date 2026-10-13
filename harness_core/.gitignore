@@ -1,0 +1,19 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+.dsh-build/
+
+# 测试
+benchmarks/
+snapshots/
+website/
+
+# 环境
+venv/
+env/
+.env
+*.tsbuildinfo

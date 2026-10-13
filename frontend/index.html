@@ -38,6 +38,9 @@
 
     <!-- 3. 核心脚本 -->
     <script>
+        let cachedImageBase64 = null; // 用于缓存当前对话的图片
+        let chatHistory = []; // 🆕 新增：用于记录对话历史
+
         function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -73,6 +76,7 @@
 
                 // 显示识别后的图片
                 resultImg.src = "data:image/jpeg;base64," + data.image;
+                cachedImageBase64 = data.image; // 缓存下来，供后续对话使用
 
                 // 显示识别结果文字
                 const labelText = data.labels.join(", ");
@@ -114,14 +118,27 @@
                 const response = await fetch('http://127.0.0.1:8000/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({
+                        query: query,
+                        image: cachedImageBase64,
+                        mode: "chat",
+                        history:chatHistory//将历史记录发送给后端
+                    })
                 });
-
                 const data = await response.json();
-                chatBox.innerHTML += `<div class="ai-msg">AI：${data.answer}</div>`;
+                // 增加容错处理
+                const answerText = data.answer || "后端返回格式错误，请检查终端日志。";
+                chatBox.innerHTML += `<div class="ai-msg">AI：${answerText}</div>`;
+                // 🆕 成功后，将这一轮对话存入历史记录
+                chatHistory.push({ role: "user", content: query });
+                chatHistory.push({ role: "assistant", content: answerText });
+                // 🆕 对话结束后，清空当前图片缓存，防止下一句还强行带入图片（图片只在当前轮次生效）
+                // cachedImageBase64 = null;
+                // (注：如果你想让它一直记住这张图，就先别清空；如果想让它看完就忘，把上一行的注释放开)
             } catch (error) {
                 chatBox.innerHTML += `<div class="ai-msg" style="color:red;">系统错误：${error.message}</div>`;
-            } finally {
+            }
+            finally {
                 sendBtn.disabled = false;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
